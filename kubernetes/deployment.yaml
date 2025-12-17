@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: app
-        image: callcocam/siscom:latest
+        image: ghcr.io/callcocam/siscom:latest
         ports:
         - containerPort: 80
         envFrom:

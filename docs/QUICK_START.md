@@ -28,8 +28,8 @@ cd kubernetes-vps-setup
 **Responda as perguntas:**
 
 ```
-📦 Nome do projeto: meu-app
-🏢 Namespace: meu-app
+📦 Nome do projeto: siscom
+🏢 Namespace: siscom
 🌐 Domínio: app.exemplo.com
 🖥️  IP da VPS: 203.0.113.10
  APP_KEY: [ENTER para gerar]
@@ -141,8 +141,8 @@ kubectl apply -f kubernetes/postgres.yaml
 kubectl apply -f kubernetes/redis.yaml
 
 # Aguardar bancos de dados ficarem prontos
-kubectl wait --for=condition=ready pod -l app=postgres -n meu-app --timeout=120s
-kubectl wait --for=condition=ready pod -l app=redis -n meu-app --timeout=120s
+kubectl wait --for=condition=ready pod -l app=postgres -n siscom --timeout=120s
+kubectl wait --for=condition=ready pod -l app=redis -n siscom --timeout=120s
 
 # Aplicar aplicação
 kubectl apply -f kubernetes/deployment.yaml
@@ -159,16 +159,16 @@ kubectl apply -f kubernetes/migration-job.yaml
 
 ```bash
 # Ver pods
-kubectl get pods -n meu-app
+kubectl get pods -n siscom
 
 # Ver certificado SSL (pode levar 2-5 minutos)
-kubectl get certificate -n meu-app
+kubectl get certificate -n siscom
 
 # Ver ingress
-kubectl get ingress -n meu-app
+kubectl get ingress -n siscom
 
 # Ver logs
-kubectl logs -f deployment/app -n meu-app
+kubectl logs -f deployment/app -n siscom
 ```
 
 **Saída esperada:**
@@ -227,20 +227,20 @@ git push origin main
 
 ```bash
 # Ver erro
-kubectl describe pod POD_NAME -n meu-app
+kubectl describe pod POD_NAME -n siscom
 
 # Ver logs
-kubectl logs POD_NAME -n meu-app
+kubectl logs POD_NAME -n siscom
 ```
 
 ### Certificado SSL não criado
 
 ```bash
 # Ver status
-kubectl describe certificate app-tls -n meu-app
+kubectl describe certificate app-tls -n siscom
 
 # Ver challenges
-kubectl get challenges -n meu-app
+kubectl get challenges -n siscom
 
 # Causas comuns:
 # - DNS não propagou (aguarde 10-30 min)
@@ -252,13 +252,13 @@ kubectl get challenges -n meu-app
 
 ```bash
 # Ver pods
-kubectl get pods -n meu-app
+kubectl get pods -n siscom
 
 # Se não estão Running, ver logs:
-kubectl logs deployment/app -n meu-app
+kubectl logs deployment/app -n siscom
 
 # Verificar ingress
-kubectl get ingress -n meu-app
+kubectl get ingress -n siscom
 kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 ```
 
@@ -291,22 +291,22 @@ gh run list --workflow="Build and Push Docker Image"
 
 ```bash
 # Ver tudo do namespace
-kubectl get all -n meu-app
+kubectl get all -n siscom
 
 # Ver logs em tempo real
-kubectl logs -f deployment/app -n meu-app
+kubectl logs -f deployment/app -n siscom
 
 # Executar comando no pod
-kubectl exec -it deployment/app -n meu-app -- bash
+kubectl exec -it deployment/app -n siscom -- bash
 
 # Executar migrations
-kubectl exec -it deployment/app -n meu-app -- php artisan migrate
+kubectl exec -it deployment/app -n siscom -- php artisan migrate
 
 # Reiniciar deployment
-kubectl rollout restart deployment/app -n meu-app
+kubectl rollout restart deployment/app -n siscom
 
 # Ver eventos
-kubectl get events -n meu-app --sort-by='.lastTimestamp'
+kubectl get events -n siscom --sort-by='.lastTimestamp'
 ```
 
 ---
