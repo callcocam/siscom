@@ -1,0 +1,111 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NAMESPACE: siscom
+
+jobs:
+  build-and-push:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+        cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+        
+    - name: Configure kubectl
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+        
+    - name: Verify Cluster Connection
+      run: kubectl get nodes
+      
+    - name: Create Namespace (if not exists)
+      run: kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+      
+    - name: Apply Kubernetes Configurations
+      run: |
+        kubectl apply -f kubernetes/secrets.yaml
+        kubectl apply -f kubernetes/configmap.yaml
+        kubectl apply -f kubernetes/cert-issuer.yaml
+        kubectl apply -f kubernetes/postgres.yaml
+        kubectl apply -f kubernetes/redis.yaml
+        
+        # Aguardar databases
+        kubectl wait --for=condition=ready pod -l app=postgres -n ${{ env.NAMESPACE }} --timeout=120s || true
+        kubectl wait --for=condition=ready pod -l app=redis -n ${{ env.NAMESPACE }} --timeout=120s || true
+        
+        # Aplicar aplicação
+        kubectl apply -f kubernetes/deployment.yaml
+        kubectl apply -f kubernetes/service.yaml
+        kubectl apply -f kubernetes/ingress.yaml
+        
+    - name: Update Deployment Image
+      run: |
+        kubectl set image deployment/app \
+          app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          -n ${{ env.NAMESPACE }}
+          
+    - name: Wait for Deployment Rollout
+      run: kubectl rollout status deployment/app -n ${{ env.NAMESPACE }} --timeout=5m
+      
+    - name: Run Migrations
+      run: kubectl apply -f kubernetes/migration-job.yaml
+      
+    - name: Get Deployment Status
+      run: |
+        echo "=== Pods ==="
+        kubectl get pods -n ${{ env.NAMESPACE }}
+        echo ""
+        echo "=== Services ==="
+        kubectl get svc -n ${{ env.NAMESPACE }}
+        echo ""
+        echo "=== Ingress ==="
+        kubectl get ingress -n ${{ env.NAMESPACE }}

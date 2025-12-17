@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migration
+  namespace: siscom
+spec:
+  template:
+    spec:
+      containers:
+      - name: migration
+        image: callcocam/siscom:latest
+        command: ["php", "artisan", "migrate", "--force"]
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+      restartPolicy: OnFailure
+  backoffLimit: 3
