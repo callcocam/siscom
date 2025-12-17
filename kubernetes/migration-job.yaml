@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: migration
-        image: callcocam/siscom:latest
+        image: ghcr.io/callcocam/siscom:latest
         command: ["php", "artisan", "migrate", "--force"]
         envFrom:
         - configMapRef:
